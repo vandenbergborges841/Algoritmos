@@ -1,0 +1,9 @@
+configuration WlanInterferenceC {}
+implementation {
+  components MainC, WlanInterferenceP, LedsC;
+  components new TimerMilliC() as Timer0;
+
+  WlanInterferenceP.Boot -> MainC;
+  WlanInterferenceP.Leds -> LedsC;
+  WlanInterferenceP.Timer0 -> Timer0;
+}
