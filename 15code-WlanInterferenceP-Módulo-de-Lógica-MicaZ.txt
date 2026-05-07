@@ -1,0 +1,68 @@
+#include <Timer.h>
+
+module WlanInterferenceP {
+  uses interface Boot;
+  uses interface Leds;
+  uses interface Timer0;
+}
+implementation {
+
+  // Definição de constantes para evitar o uso de memória dinâmica
+  enum {
+    MAX_CANAIS = 10,
+    LIMIAR_BLOQUEIO = -34, // Exemplo baseado no cenário 'b'
+    CENTRO_WLAN = 17       // Canal central de referência
+  };
+
+  // Estrutura para armazenar o estado do canal
+  typedef struct {
+    uint8_t id;
+    int8_t potencia_interf;
+    bool bloqueado;
+  } canal_t;
+
+  canal_t canais[MAX_CANAIS];
+
+  // Função para mapear distância em potência (Simulando o dicionário do Python)
+  int8_t calcular_potencia(uint8_t dist) {
+    if (dist == 0) return 0;
+    if (dist == 1) return -40;
+    if (dist == 2) return -34;
+    if (dist == 3) return -24;
+    return -20;
+  }
+
+  event void Boot.booted() {
+    uint8_t i;
+    // Inicializa canais de sensores (ex: 14 a 23)
+    for (i = 0; i < MAX_CANAIS; i++) {
+      canais[i].id = 14 + i;
+      canais[i].bloqueado = FALSE;
+    }
+    
+    call Timer0.startOneShot(1000);
+  }
+
+  event void Timer0.fired() {
+    uint8_t i;
+    uint8_t dist;
+
+    for (i = 0; i < MAX_CANAIS; i++) {
+      // 1. Calcular distância absoluta ao centro WLAN
+      if (canais[i].id > CENTRO_WLAN) 
+        dist = canais[i].id - CENTRO_WLAN;
+      else 
+        dist = CENTRO_WLAN - canais[i].id;
+
+      // 2. Estimar interferência
+      canais[i].potencia_interf = calcular_potencia(dist);
+
+      // 3. Lógica de Bloqueio
+      if (canais[i].potencia_interf >= LIMIAR_BLOQUEIO) {
+        canais[i].bloqueado = TRUE;
+        // Acende o LED vermelho se o canal central estiver bloqueado
+        if (canais[i].id == CENTRO_WLAN) call Leds.led0On();
+      }
+    }
+  }
+}
